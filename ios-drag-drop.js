@@ -26,7 +26,7 @@
   }
 
   function DragDrop(event, el) {
-
+    this.hasMoved = false;
     this.dragData = {};
     this.dragDataTypes = [];
     this.dragImage = null;
@@ -69,6 +69,7 @@
       }
     },
     move: function(event) {
+      this.hasMoved = true;
       var pageXs = [], pageYs = [];
       [].forEach.call(event.changedTouches, function(touch, index) {
         pageXs.push(touch.pageX);
@@ -122,7 +123,6 @@
       }
     },
     dragend: function(event) {
-
       // we'll dispatch drop if there's a target, then dragEnd.
       // drop comes first http://www.whatwg.org/specs/web-apps/current-work/multipage/dnd.html#drag-and-drop-processing-model
       log("dragend");
@@ -131,11 +131,19 @@
         this.dispatchLeave(event);
       }
 
+      if (!this.hasMoved) {
+        var clickEvt = document.createEvent("MouseEvents");
+        clickEvt.initMouseEvent("click", true, true, this.el.ownerDocument.defaultView, 1,
+          event.screenX, event.screenY, event.clientX, event.clientY,
+          event.ctrlKey, event.altKey, event.shiftKey, event.metaKey, 0, null);
+        this.el.dispatchEvent(clickEvt);
+      }
+
       this.hideDragImage();
       var target = elementFromTouchEvent(this.el,event)
       this.showDragImage();
 
-      if (target) {
+      if (target && this.hasMoved) {
         log("found drop target " + target.tagName);
         this.dispatchDrop(target, event)
       } else {
@@ -241,9 +249,9 @@
     },
     createDragImage: function() {
       this.dragImage = this.el.cloneNode(true);
-      
+
       duplicateStyle(this.el, this.dragImage);
-      
+
       this.dragImage.style["opacity"] = "0.5";
       this.dragImage.style["position"] = "absolute";
       this.dragImage.style["left"] = "0px";
@@ -277,18 +285,7 @@
   function touchstart(evt) {
     var el = evt.target;
     do {
-      if (el.draggable === true) {
-        // If draggable isn't explicitly set for anchors, then simulate a click event.
-        // Otherwise plain old vanilla links will stop working.
-        // https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Touch_events#Handling_clicks
-        if (!el.hasAttribute("draggable") && el.tagName.toLowerCase() == "a") {
-          var clickEvt = document.createEvent("MouseEvents");
-          clickEvt.initMouseEvent("click", true, true, el.ownerDocument.defaultView, 1,
-            evt.screenX, evt.screenY, evt.clientX, evt.clientY,
-            evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey, 0, null);
-          el.dispatchEvent(clickEvt);
-          log("Simulating click to anchor");
-        }
+      if (el.hasAttribute("draggable") && el.getAttribute("draggable") == "true") {
         evt.preventDefault();
         new DragDrop(evt,el);
       }
